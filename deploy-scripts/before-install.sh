@@ -8,4 +8,5 @@ if [ "$useKubernetes" = true ]; then
 	done
 else
 	docker volume prune --force && docker system prune -f
+	docker network create orto-network
 fi
