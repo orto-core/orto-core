@@ -148,6 +148,9 @@ pipeline {
                   sh "cp deploy-scripts/ -r app/"
                   sh "cp appspec.yml app/"
                   sh "cp docker-compose.yml app/"
+                  withCredentials([file(credentialsId: "orto-core-env", variable: 'ENV')]) {
+                    sh "cp ${ENV} .env"
+                  }
 
                   sh "sed -i 's|services=()|services=(${servicesString})|g' app/deploy-scripts/after-install.sh"
 
