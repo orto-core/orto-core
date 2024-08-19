@@ -38,6 +38,11 @@ dockerInstall() {
 	sudo systemctl restart docker
 }
 
+nginxInstall() {
+	sudo apt-get update
+	sudo apt-get -y install nginx
+}
+
 if systemctl status codedeploy-agent >/dev/null 2>&1; then
 	echo "CodeDeploy agent is already running."
 else
@@ -48,11 +53,12 @@ fi
 if systemctl status docker >/dev/null 2>&1; then
 	echo "Docker Engine is already running."
 else
-	sleep 30
 	echo "Installing Docker Engine..."
 	dockerInstall
 fi
 
-# Debugging: Check Docker installation status
-echo "Docker installation status:"
-sudo systemctl status docker
+if systemctl status nginx >/dev/null 2>&1; then
+	echo "NGINX Service is already running."
+else
+	nginxInstall
+fi

@@ -1,6 +1,7 @@
 services:
   api-gateway:
     image: nathanku/api-gateway:latest
+    container_name: api-gateway
     restart: on-failure:3
     ports:
       - "8081:8081"
@@ -35,6 +36,7 @@ services:
 
   auth-db:
     image: postgres
+    restart: on-failure:3
     environment:
       POSTGRES_DB: ${POSTGRES_USER_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -54,6 +56,7 @@ services:
 
   tenant-db:
     image: postgres
+    restart: on-failure:3
     environment:
       POSTGRES_DB: ${POSTGRES_TENANT_DB}
       POSTGRES_USER: ${POSTGRES_USER}

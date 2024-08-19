@@ -1,5 +1,5 @@
 
-# Project Name
+# ORTO CORE
 
 ## Overview
 This repository contains multiple microservices along with the necessary CI/CD pipelines, infrastructure as code, deployment scripts, and monitoring configurations.
@@ -11,6 +11,7 @@ This repository contains multiple microservices along with the necessary CI/CD p
 - AWS CLI
 
 ## Directory Structure
+`
 server
 ├── api-gateway/
 ├── auth-service/
@@ -24,7 +25,8 @@ server
 ├── README.md
 ├── appspec.yml
 ├── docker-compose.yml
-└── sonar-project.properti
+└── sonar-project.properties
+`
 
 ## Microservices
 - **API Gateway**: Manages API requests and routing.
