@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-config
+  namespace: default
+data:
+  PORT: "8081"
+  AUTH_SERVICE_PORT: "8082"
+  TENANT_SERVICE_PORT: "8083"
+  PAGE_SERVICE_PORT: "8084"
+  JWT_SECRET: ksdnKz5BvCQ5wHV9RpkfChYcmA7rRpRtpI9nUjhkyB5syXvbbjwfva__mNhpY0fxzvK84J7GYpZctlHxizGfLsDXEkKC7HcAIzmp_ZxawVrT2DQym6BJfM30w0mVv4vFLD5KJ2-yFWJECQogLOh1EZvNXlWxNpIKNidW8S-Eq8PG9-VZTFtLxdw0JsMMjbNAsXrtUBcAumTtIOfy28ia--V7GAPMbKXDxyk_10PO7Q_ZjMH0PTifzjzvBXB-rVlDV_pJbwsvsHjV7Az_caYLtFlFEfzt13qbvtSMMW-J2YkZ9GglPqhUoFJMbhBLGuBkWG5ei71kjnEiH0BPCRruDg

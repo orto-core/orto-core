@@ -1,0 +1,84 @@
+services:
+  api-gateway:
+    image: nathanku/api-gateway:latest
+    restart: on-failure:3
+    ports:
+      - "8081:8081"
+    networks:
+      - orto-network
+
+  auth-service:
+    image: nathanku/auth-service:latest
+    container_name: auth-service
+    restart: on-failure:3
+    ports:
+      - "8082:8082"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+        restart: true
+    networks:
+      - orto-network
+
+  tenant-service:
+    image: nathanku/tenant-service:latest
+    container_name: tenant-service
+    restart: on-failure:3
+    ports:
+      - "8083:8083"
+    depends_on:
+      tenant-db:
+        condition: service_healthy
+        restart: true
+    networks:
+      - orto-network
+
+  auth-db:
+    image: postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_USER_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata_user:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_USER_DB}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    networks:
+      - orto-network
+
+  tenant-db:
+    image: postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_TENANT_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata_tenant:/var/lib/postgresql/data
+    ports:
+      - 5433:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_TENANT_DB}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    networks:
+      - orto-network
+
+
+
+volumes:
+  pgdata_user: {}
+  pgdata_tenant: {}
+
+networks:
+  orto-network:
+    external: true
+
+

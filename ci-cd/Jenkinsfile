@@ -1,0 +1,223 @@
+def services = ["api-gateway", "auth-service", "tenant-service"]
+def changedServices = []
+
+def awsCred = [
+    region: 'us-east-1',
+    iamCredId: 'nate-aws-credential'
+]
+
+def deploymentConfig = [
+    // Code Deploy
+    codeDeployAppName: "ormanel",
+    codeDeployGroup: "orto",
+    // S3
+    revisionLocation: "orto-deployment-assets",
+    revisionTag: "app/",
+    assetsPath: "app/",
+]
+
+pipeline {
+    agent any
+    tools { go 'go1.21.4' }
+    environment {
+        currentBranch = "${env.BRANCH_NAME ?: 'unknown-branch'}"
+        imageName = "orto"
+        imageTagPrefix = "nathanku/"
+        imageVersion = "0.0.1"
+    }
+    stages {
+       /* stage("Checkout") {
+            steps {
+                checkout scm
+            }
+        } */
+        stage("Run Tests") {
+          when {
+            branch 'develop'
+          }
+          steps {
+            script {
+              for (service in services) {
+                dir(service){
+                  sh "go test ./tests -v"
+                }
+              }
+            }
+          }
+        }
+        stage("SonarQube Analysis"){
+          when {
+            branch 'develop'
+          }
+          steps {
+            script {
+              def scannerHome = tool 'SonarScanner'
+              withSonarQubeEnv('SonarQube'){
+                sh "${scannerHome}/bin/sonar-scanner"
+              }
+            }
+          }
+        }
+        stage("Determine Changed Services") {
+            when {
+                branch 'develop'
+            }
+            steps {
+                script {
+                    def hasChanged = false
+                    for (service in services) {
+                        def result = sh(script: "git diff --name-only HEAD^ HEAD", returnStdout: true).trim()
+                        if(result.contains(service)) {
+                            echo "Changes detected in ${service}"
+                            changedServices << service
+                            hasChanged = true
+                        } else {
+                            echo "No changes detected in ${service}."
+                        }
+                    }
+                    if(!hasChanged) {
+                        echo "No changes detected in any service."
+                        currentBuild.result = "SUCCESS"
+                        return
+                    }
+                }
+            }
+        }
+        stage("Copy Env"){
+            when {
+                branch 'develop'
+            }
+            steps{
+                script {
+                    for(service in services){
+                        withCredentials([file(credentialsId: "${service}-env", variable: 'ENV')]) {
+                            sh "cp ${ENV} ./${service}/.env"
+                        }
+                    }
+                }
+            }
+        }
+        stage("Build Docker Image") {
+            when {
+                branch 'develop'
+            }
+            steps {
+                script {
+                    for(service in services) {
+                        def imageTag = "${imageTagPrefix}${service}:${imageVersion}-${env.BUILD_NUMBER}"
+                        sh "docker build -t ${imageTag} ./${service}"
+                    }
+                }
+            }
+        }
+        stage("Docker Login") {
+            when {
+                branch 'develop'
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker-hub', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
+                    script {
+                        sh "echo ${PASSWORD} | docker login --username ${USERNAME} --password-stdin"
+                    }
+                }
+            }
+        }
+        stage("Push Docker Image") {
+            when {
+                branch 'develop'
+            }
+            steps {
+                script {
+                    for(service in services) {
+                        def imageTag = "${imageTagPrefix}${service}:${imageVersion}-${env.BUILD_NUMBER}"
+                        sh "docker push ${imageTag}"
+                    }
+                }
+            }
+        }
+        stage("Prepare Deployment Assets") {
+            when {
+                branch 'develop'
+            }
+            steps {
+                script {
+                  def servicesString = services.collect { "\"$it\"" }.join(' ')
+
+                  sh "mkdir -p app"
+                  sh "cp kubernetes/ -r app/"
+                  sh "cp deploy-scripts/ -r app/"
+                  sh "cp appspec.yml app/"
+                  sh "cp docker-compose.yml app/"
+
+                  sh "sed -i 's|services=()|services=(${servicesString})|g' app/deploy-scripts/after-install.sh"
+
+                  for (service in services){
+                    def imageTag = "${imageTagPrefix}${service}:${imageVersion}-${env.BUILD_NUMBER}"
+                    echo "Updating image for service ${service} to ${imageTag}"
+                    sh "sed -i 's|image: nathanku/${service}:latest|image: ${imageTag}|g' app/kubernetes/deployments/${service}.yaml"
+                    sh "sed -i 's|image: nathanku/${service}:latest|image: ${imageTag}|g' app/docker-compose.yml"
+
+                  }
+                }
+            }
+        }
+        stage("Deploy Assets to S3") {
+            when {
+                branch 'develop'
+            }
+            steps {
+                script {
+                    withAWS(region: awsCred.region, credentials: awsCred.iamCredId) {
+                        def gitSha = sh(script: 'git log -n 1 --pretty=format:"%H"', returnStdout: true)
+                        sh """
+                            aws deploy push \
+                            --application-name ${deploymentConfig.codeDeployAppName} \
+                            --description "This is a revision for ${deploymentConfig.codeDeployAppName}-${gitSha}" \
+                            --no-ignore-hidden-files \
+                            --s3-location s3://${deploymentConfig.revisionLocation}/${deploymentConfig.revisionTag}-${gitSha}.zip \
+                            --source ${deploymentConfig.assetsPath}
+                            """
+                    }
+                }
+            }
+        }
+        stage("Deploy Application") {
+            when {
+                branch 'develop'
+            }
+            steps {
+                script {
+                    withAWS(region: awsCred.region, credentials: awsCred.iamCredId) {
+                      def gitSha = sh(script: 'git log -n 1 --pretty=format:"%H"', returnStdout: true)
+                      sh """
+                        aws deploy create-deployment \
+                        --application-name ${deploymentConfig.codeDeployAppName} \
+                        --deployment-config-name CodeDeployDefault.OneAtATime \
+                        --deployment-group-name ${deploymentConfig.codeDeployGroup} \
+                        --file-exists-behavior OVERWRITE \
+                        --s3-location bucket=${deploymentConfig.revisionLocation},key=${deploymentConfig.revisionTag}-${gitSha}.zip,bundleType=zip
+                        """
+                      }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                for(service in services) {
+                    def imageTag = "${imageTagPrefix}${service}:${imageVersion}-${env.BUILD_NUMBER}"
+                    sh "docker rmi ${imageTag} || true"
+                }
+            }
+            sh "docker system prune -f"
+            cleanWs()
+        }
+        success {
+            echo "Pipeline completed successfully!"
+        }
+        failure {
+            echo "Pipeline failed!"
+        }
+    }
+}

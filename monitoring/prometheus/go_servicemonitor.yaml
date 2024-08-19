@@ -1,0 +1,28 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: api-gateway-monitor
+  labels:
+    app: api-gateway
+spec:
+  endpoints:
+    - interval: 30s
+      port: api-gateway
+  selector:
+    matchLabels:
+      app: api-gateway
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: auth-service-monitor
+  labels:
+    app: auth-service
+spec:
+  endpoints:
+    - interval: 30s
+      port: auth-service
+  selector:
+    matchLabels:
+      app: auth-service

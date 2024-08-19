@@ -1,0 +1,8 @@
+database:
+  dsn: ${DSN}
+authentication:
+  jwt_secret: ${JWT_SECRET}
+mail:
+  host: ${EMAIL_HOST}
+  username: ${EMAIL_USERNAME}
+  password: ${EMAIL_PASSWORD}

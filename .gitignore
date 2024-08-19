@@ -1,0 +1,8 @@
+*.env
+/api-gateway/build
+/auth-service/build
+
+compose.yaml
+.terraform*
+*.tfstate*
+

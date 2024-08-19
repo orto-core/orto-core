@@ -1,0 +1,129 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tenant-service-deployment
+  namespace: default
+  labels:
+    app: tenant-service
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: tenant-service
+  template:
+    metadata:
+      labels:
+        app: tenant-service
+        tier: backend
+      annotations:
+        kubectl.kubernetes.io/default-container: tenant-service
+    spec:
+      containers:
+        - name: tenant-service
+          image: nathanku/tenant-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8082
+              name: http
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+              ephemeral-storage: 2Gi
+          livenessProbe:
+            httpGet:
+              path: /_status/healthz
+              port: 8082
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /_status/healthz
+              port: 8082
+            initialDelaySeconds: 5
+            timeoutSeconds: 3
+            periodSeconds: 10
+            failureThreshold: 3
+          env:
+            - name: DSN
+              valueFrom:
+                secretKeyRef:
+                  name: tenant-service-secret
+                  key: DSN
+      automountServiceAccountToken: false
+      restartPolicy: Always
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-postgres-deployment
+  labels:
+    app: tenant-service-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tenant-service-db
+  template:
+    metadata:
+      labels:
+        app: tenant-service-db
+    spec:
+      initContainers:
+        - name: init-script
+          image: busybox
+          command:
+            [
+              "sh",
+              "-c",
+              "mkdir -p /docker-entrypoint-initdb.d && cat /init/init.sql > /docker-entrypoint-initdb.d/init.sql",
+            ]
+          volumeMounts:
+            - name: init-script
+              mountPath: /init
+      containers:
+        - name: tenant-service-db
+          image: postgres
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+              ephemeral-storage: 50Gi
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: "postgres"
+              # valueFrom:
+              #   secretKeyRef:
+              #     name: db-secret
+              #     key: DB_USERNAME
+            - name: POSTGRES_PASSWORD
+              value: "password"
+              # valueFrom:
+              #   secretKeyRef:
+              #     name: db-secret
+              #     key: DB_PASSWORD
+          volumeMounts:
+            - name: init-script
+              mountPath: /docker-entrypoint-initdb.d
+      automountServiceAccountToken: false
+      volumes:
+        - name: init-script
+          configMap:
+            name: postgres-init-script
