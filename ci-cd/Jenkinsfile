@@ -153,6 +153,8 @@ pipeline {
                   }
 
                   sh "sed -i 's|services=()|services=(${servicesString})|g' app/deploy-scripts/after-install.sh"
+                  sh "sed -i 's|services=()|services=(${servicesString})|g' app/deploy-scripts/boot.sh"
+                  sh "sed -i 's|services=()|services=(${servicesString})|g' app/deploy-scripts/before-install.sh"
 
                   for (service in services){
                     def imageTag = "${imageTagPrefix}${service}:${imageVersion}-${env.BUILD_NUMBER}"

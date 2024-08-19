@@ -1,6 +1,7 @@
 #!/bin/bash
 
 useKerbernetes=false
+services=()
 
 if [ "$useKerbernetes" = true ]; then
 	for service in "${services[@]}"; do
