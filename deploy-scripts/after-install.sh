@@ -11,5 +11,5 @@ if [ "$useKubernetes" = true ]; then
 	done
 else
 	cd "/home/projects/orto-micro-service"
-	docker compose -f "docker-compose.yml" up --remove-orphans -d
+	sudo docker compose -f "docker-compose.yml" up --remove-orphans -d
 fi

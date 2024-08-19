@@ -11,6 +11,8 @@ COPY ./internal ./internal
 
 COPY .env .
 
+RUN chmod 644 .env
+
 RUN go build -o /app/auth-service ./cmd/main.go
 
 EXPOSE 8082
