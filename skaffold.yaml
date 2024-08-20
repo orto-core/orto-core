@@ -1,0 +1,49 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: orto-core
+build:
+  artifacts:
+    - image: busybox
+      context: auth-service
+      buildpacks:
+        builder: gcr.io/buildpacks/builder:v1
+    - image: grafana/grafana
+      context: api-gateway
+      buildpacks:
+        builder: gcr.io/buildpacks/builder:v1
+    - image: nathanku/api-gateway
+      context: tenant-service
+      buildpacks:
+        builder: gcr.io/buildpacks/builder:v1
+    - image: nathanku/auth-service
+      context: api-gateway
+      docker:
+        dockerfile: Dockerfile
+    - image: nathanku/tenant-service
+      context: auth-service
+      docker:
+        dockerfile: Dockerfile
+    - image: postgres
+      context: tenant-service
+      docker:
+        dockerfile: Dockerfile
+manifests:
+  rawYaml:
+    - kubernetes/config-maps/api-gateway.yaml
+    - kubernetes/config-maps/auth-service.yaml
+    - kubernetes/config-maps/tenant-service.yaml
+    - kubernetes/deployments/api-gateway.yaml
+    - kubernetes/deployments/auth-service.yaml
+    - kubernetes/deployments/tenant-service.yaml
+    - kubernetes/secrets/auth-service.yaml
+    - kubernetes/secrets/tenant-service.yaml
+    - kubernetes/services/api-gateway.yaml
+    - kubernetes/services/auth-service.yaml
+    - kubernetes/services/tenant-service.yaml
+    - monitoring/grafana/grafana.yaml
+    - monitoring/operator_k8/prom_rbac.yaml
+    - monitoring/prometheus/go_servicemonitor.yaml
+    - monitoring/prometheus/prom_svc.yaml
+    - monitoring/prometheus/prometheus.yaml
+    - monitoring/prometheus/prometheus_servicemonitor.yaml
