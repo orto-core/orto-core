@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
         - name: auth-service
-          image: nathanku/auth-service:latest
+          image: nathanku/auth-service:0.0.1-10
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8082
@@ -126,4 +126,4 @@ spec:
       volumes:
         - name: init-script
           configMap:
-            name: postgres-init-script
+            name: postgres-init-script-user

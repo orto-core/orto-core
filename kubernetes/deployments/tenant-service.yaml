@@ -29,10 +29,10 @@ spec:
     spec:
       containers:
         - name: tenant-service
-          image: nathanku/tenant-service:latest
+          image: nathanku/tenant-service:0.0.1-10
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8082
+            - containerPort: 8083
               name: http
           resources:
             requests:
@@ -45,7 +45,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /_status/healthz
-              port: 8082
+              port: 8083
             initialDelaySeconds: 10
             timeoutSeconds: 5
             periodSeconds: 10
@@ -53,7 +53,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /_status/healthz
-              port: 8082
+              port: 8083
             initialDelaySeconds: 5
             timeoutSeconds: 3
             periodSeconds: 10
@@ -71,7 +71,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: auth-postgres-deployment
+  name: tenant-postgres-deployment
   labels:
     app: tenant-service-db
 spec:
@@ -85,17 +85,17 @@ spec:
         app: tenant-service-db
     spec:
       initContainers:
-        - name: init-script
+        - name: init-script-tenant
           image: busybox
           command:
             [
               "sh",
               "-c",
-              "mkdir -p /docker-entrypoint-initdb.d && cat /init/init.sql > /docker-entrypoint-initdb.d/init.sql",
+              "mkdir -p /docker-entrypoint-initdb.d && cat /init-tenant/init.sql > /docker-entrypoint-initdb.d/init.sql",
             ]
           volumeMounts:
-            - name: init-script
-              mountPath: /init
+            - name: init-script-tenant
+              mountPath: /init-tenant
       containers:
         - name: tenant-service-db
           image: postgres
@@ -120,10 +120,10 @@ spec:
               #     name: db-secret
               #     key: DB_PASSWORD
           volumeMounts:
-            - name: init-script
+            - name: init-script-tenant
               mountPath: /docker-entrypoint-initdb.d
       automountServiceAccountToken: false
       volumes:
-        - name: init-script
+        - name: init-script-tenant
           configMap:
-            name: postgres-init-script
+            name: postgres-init-script-tenant
