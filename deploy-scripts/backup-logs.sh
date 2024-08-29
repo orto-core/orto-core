@@ -1,20 +1,28 @@
 #!/bin/bash
 
-LOG_DIR="/var/log"
+DOCKER_LOG_DIR="/var/lib/docker/containers"
 S3_BUCKET="s3://orto-deployment-assets"
-BACKUP_DIR="/home/nathan/logs"
+BACKUP_DIR="/home/projects/logs"
 RETENTION_DAYS=2
 
+mkdir -p "$BACKUP_DIR"
+
 backupLogs() {
-	mkdir -p $BACKUP_DIR
+	for log_dir in "$DOCKER_LOG_DIR"/*; do
+		if [ -d "$log_dir" ]; then
+			find "$log_dir" -type f -name "*.log" -mtime +$RETENTION_DAYS -exec mv {} "$BACKUP_DIR" \;
+		fi
+	done
 
-	find $LOG_DIR -type f -mtime +$RETENTION_DAYS -exec mv {} $BACKUP_DIR \;
+	aws s3 sync "$BACKUP_DIR" "$S3_BUCKET"
 
-	aws s3 sync $BACKUP_DIR $S3_BUCKET
+	for log_dir in "$DOCKER_LOG_DIR"/*; do
+		if [ -d "$log_dir" ]; then
+			find "$log_dir" -type f -name "*.log" -mtime +$RETENTION_DAYS -exec rm {} \;
+		fi
+	done
 
-	find $LOG_DIR -type f -mtime +$RETENTION_DAYS -exec rm {} \;
-
-	rm -rf $BACKUP_DIR
+	rm -rf "$BACKUP_DIR"/*
 }
 
 backupLogs
